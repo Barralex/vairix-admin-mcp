@@ -22,17 +22,17 @@ You  ->  Claude Code  ->  MCP Server (local)  ->  admin.vairix.com
 ## Setup
 
 ```bash
-claude mcp add vairix-admin -- npx github:vairix/admin-mcp
+claude mcp add vairix-admin -- npx github:Barralex/vairix-admin-mcp
 ```
 
-That's it. Requires access to the private repo (must be part of the Vairix GitHub org).
+That's it. Requires access to the private repo.
 
 <details>
 <summary>Alternative: clone manually</summary>
 
 ```bash
-git clone git@github.com:vairix/admin-mcp.git
-cd admin-mcp
+git clone git@github.com:Barralex/vairix-admin-mcp.git
+cd vairix-admin-mcp
 npm install
 claude mcp add vairix-admin -- node $(pwd)/build/index.js
 ```
