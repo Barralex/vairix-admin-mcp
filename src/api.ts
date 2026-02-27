@@ -144,20 +144,24 @@ export async function getHours(
 }
 
 export async function getPendingDays(): Promise<string[]> {
-  const res = await apiGet("/admin/daily_hours");
-  if (res.status !== 200)
-    throw new Error(`Failed to get pending days: ${res.status}`);
-  const html = await res.text();
+  const hours = await getHours("current_month");
+  const loggedDates = new Set(hours.map((h) => h.initial_date));
 
-  const match = html.match(
-    /Aun no se cargo el\/los d[ií]a[s]? para [^:]+:\s*([^\n<]+)/
-  );
-  if (!match) return [];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
 
-  return match[1]
-    .split(",")
-    .map((d) => d.trim())
-    .filter(Boolean);
+  const pending: string[] = [];
+  for (let day = 1; day <= today; day++) {
+    const d = new Date(year, month, day);
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue; // skip weekends
+    const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    if (!loggedDates.has(dateStr)) pending.push(dateStr);
+  }
+
+  return pending;
 }
 
 export async function getProjects(): Promise<ProjectOption[]> {

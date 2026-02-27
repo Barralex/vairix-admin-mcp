@@ -29,6 +29,21 @@ export async function loadSession(): Promise<SessionData | null> {
 
 export async function clearSession(): Promise<void> {
   await keytar.deletePassword(SERVICE, "session");
+  await keytar.deletePassword(SERVICE, "main_project").catch(() => {});
+}
+
+export async function saveMainProject(projectId: string, projectName: string): Promise<void> {
+  await keytar.setPassword(SERVICE, "main_project", JSON.stringify({ id: projectId, name: projectName }));
+}
+
+export async function loadMainProject(): Promise<{ id: string; name: string } | null> {
+  try {
+    const data = await keytar.getPassword(SERVICE, "main_project");
+    if (!data) return null;
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
 }
 
 export async function isSessionValid(session: SessionData): Promise<boolean> {

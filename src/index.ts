@@ -3,7 +3,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { authenticate, loadSession, isSessionValid, clearSession } from "./auth.js";
+import { authenticate, loadSession, isSessionValid, clearSession, saveMainProject, loadMainProject } from "./auth.js";
 import {
   getHours,
   getPendingDays,
@@ -38,10 +38,16 @@ server.tool(
   async () => {
     try {
       const session = await authenticate();
+      const projects = await getProjects();
+      const mainProject = await loadMainProject();
+      const projectList = projects.map((p) => `- [${p.id}] ${p.name}`).join("\n");
+      const mainInfo = mainProject
+        ? `Current main project: [${mainProject.id}] ${mainProject.name}`
+        : "No main project set. Use `set_main_project` to set one.";
       return {
         content: [{
           type: "text",
-          text: `Authenticated as ${session.email}. Session saved.`,
+          text: `Authenticated as ${session.email}. Session saved.\n\nAvailable projects:\n${projectList}\n\n${mainInfo}\n\nIMPORTANT: If no main project is set, you MUST ask the user to pick their main project from the list above using a selection UI (e.g. AskUserQuestion with the project names as options). Then call \`set_main_project\` with the chosen project_id and project_name.`,
         }],
       };
     } catch (e) {
@@ -95,6 +101,25 @@ server.tool(
     return {
       content: [{ type: "text", text: "Session cleared. Use `auth` to login again." }],
     };
+  }
+);
+
+server.tool(
+  "set_main_project",
+  "Set the user's main project for logging hours. Call `get_projects` first to see available projects. The main project is saved in the OS keychain and used as default for `create_hours`.",
+  {
+    project_id: z.string().describe("The project ID from `get_projects`"),
+    project_name: z.string().describe("The project name (for display)"),
+  },
+  async ({ project_id, project_name }) => {
+    try {
+      await saveMainProject(project_id, project_name);
+      return {
+        content: [{ type: "text", text: `Main project set to [${project_id}] ${project_name}.` }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+    }
   }
 );
 
@@ -168,14 +193,15 @@ server.tool(
 
 server.tool(
   "create_hours",
-  "Log hours for one or more dates. Workflow: 1) call `get_projects` to get the project_id, 2) call this tool with dates and project_id. Cannot log future dates. To update an existing entry, delete it first with `delete_hours` then recreate.",
+  "Log hours for one or more dates. Uses the main project if project_id is omitted. Cannot log future dates. To update an existing entry, delete it first with `delete_hours` then recreate.",
   {
     dates: z
       .array(z.string())
       .describe('One or more dates in YYYY-MM-DD format. Example: ["2026-02-24", "2026-02-25"]'),
     project_id: z
       .string()
-      .describe("Project ID — get valid IDs from `get_projects`"),
+      .optional()
+      .describe("Project ID — get valid IDs from `get_projects`. If omitted, uses the main project set via `set_main_project`."),
     hours: z
       .string()
       .default("8")
@@ -198,11 +224,19 @@ server.tool(
   },
   async ({ dates, project_id, hours, category, description, extra_allocation, in_home }) => {
     try {
+      let pid = project_id;
+      if (!pid) {
+        const mainProject = await loadMainProject();
+        if (!mainProject) {
+          return { content: [{ type: "text", text: "No project_id provided and no main project set. Use `set_main_project` first or pass a project_id." }] };
+        }
+        pid = mainProject.id;
+      }
       const results: string[] = [];
       for (const date of dates) {
         const res = await createHour({
           date,
-          project_id,
+          project_id: pid,
           hours,
           category,
           description,
