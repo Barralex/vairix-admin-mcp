@@ -1,0 +1,41 @@
+{
+  "name": "@vairix/admin-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Vairix Admin - automate time tracking with Claude",
+  "type": "module",
+  "bin": {
+    "vairix-admin-mcp": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "dev": "tsc --watch",
+    "start": "node build/index.js"
+  },
+  "files": [
+    "build"
+  ],
+  "keywords": [
+    "mcp",
+    "vairix",
+    "time-tracking",
+    "claude",
+    "active-admin"
+  ],
+  "author": "Vairix",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "keytar": "^7.9.0",
+    "playwright-core": "^1.58.2",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/keytar": "^4.4.0",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
