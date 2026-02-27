@@ -21,7 +21,7 @@ src/
 
 - TypeScript (ES2022, Node16 module resolution, strict mode)
 - `@modelcontextprotocol/sdk` - MCP server framework
-- `playwright-core` - Browser automation for auth only (uses system Chrome, no bundled Chromium)
+- `playwright-core` - Browser automation for auth only (uses system Chromium-based browser: Chrome, Edge, or Brave)
 - `keytar` - OS keychain integration (macOS Keychain / Linux libsecret / Windows Credential Vault)
 - `zod` - Tool input validation
 

@@ -46,20 +46,38 @@ export async function isSessionValid(session: SessionData): Promise<boolean> {
   }
 }
 
-function findSystemChrome(): string {
+function findChromiumBrowser(): string {
   const paths = [
-    // macOS
+    // macOS - Chrome
     "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+    // macOS - Edge
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    // macOS - Brave
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    // macOS - Chromium
     "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    // Linux
+    // Linux - Chrome
     "/usr/bin/google-chrome",
     "/usr/bin/google-chrome-stable",
+    // Linux - Edge
+    "/usr/bin/microsoft-edge",
+    "/usr/bin/microsoft-edge-stable",
+    // Linux - Brave
+    "/usr/bin/brave-browser",
+    "/usr/bin/brave-browser-stable",
+    // Linux - Chromium
     "/usr/bin/chromium-browser",
     "/usr/bin/chromium",
-    // Windows
+    // Windows - Chrome
     "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+    // Windows - Edge
+    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
+    // Windows - Brave
+    "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+    "C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
   ];
 
   for (const p of paths) {
@@ -67,12 +85,12 @@ function findSystemChrome(): string {
   }
 
   throw new Error(
-    "Google Chrome not found. Install Chrome and try again."
+    "No Chromium-based browser found. Install Chrome, Edge, or Brave and try again."
   );
 }
 
 export async function authenticate(): Promise<SessionData> {
-  const chromePath = findSystemChrome();
+  const chromePath = findChromiumBrowser();
 
   const browser = await chromium.launch({
     headless: false,
