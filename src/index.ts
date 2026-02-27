@@ -33,7 +33,7 @@ function formatHours(hours: HourEntry[]): string {
 
 server.tool(
   "auth",
-  "Opens Chrome so you can login to Vairix Admin manually. Captures session cookies after login.",
+  "Opens Chrome so the user can login to Vairix Admin manually. Required before using any other tool. Captures session cookies and stores them in the OS keychain. The user will see a Chrome window — do not call this without telling them first.",
   {},
   async () => {
     try {
@@ -55,7 +55,7 @@ server.tool(
   }
 );
 
-server.tool("auth_status", "Check if authenticated.", {}, async () => {
+server.tool("auth_status", "Check if the user has a valid session. Call this before other tools if unsure whether the user is authenticated. Returns the user's email and session age if valid.", {}, async () => {
   const session = await loadSession();
   if (!session) {
     return {
@@ -86,7 +86,7 @@ server.tool("auth_status", "Check if authenticated.", {}, async () => {
 
 server.tool(
   "logout",
-  "Clear saved session from keychain.",
+  "Clear the saved session from the OS keychain. The user will need to call `auth` again to re-authenticate.",
   {},
   async () => {
     try {
@@ -100,7 +100,7 @@ server.tool(
 
 server.tool(
   "get_pending_days",
-  "Get days that are missing hour entries.",
+  "Get workdays that are missing hour entries for the current month. Use this to find out which days the user still needs to log hours for.",
   {},
   async () => {
     try {
@@ -122,12 +122,12 @@ server.tool(
 
 server.tool(
   "get_hours",
-  "Get logged hours. Defaults to current month.",
+  "Get the user's logged hour entries. Returns ID, date, hours, category, and description for each entry. Use the ID from results to delete entries with `delete_hours`.",
   {
     scope: z
       .enum(["current_month", "all", "today", "yesterday"])
       .default("current_month")
-      .describe("Time scope to filter hours"),
+      .describe("Time scope: current_month (default), today, yesterday, or all"),
   },
   async ({ scope }) => {
     try {
@@ -146,7 +146,7 @@ server.tool(
 
 server.tool(
   "get_projects",
-  "List available projects you can log hours to.",
+  "List projects the user can log hours to. Returns project ID and name. You MUST call this before `create_hours` to get a valid project_id.",
   {},
   async () => {
     try {
@@ -168,33 +168,33 @@ server.tool(
 
 server.tool(
   "create_hours",
-  "Log hours for one or more dates.",
+  "Log hours for one or more dates. Workflow: 1) call `get_projects` to get the project_id, 2) call this tool with dates and project_id. Cannot log future dates. To update an existing entry, delete it first with `delete_hours` then recreate.",
   {
     dates: z
       .array(z.string())
-      .describe('Dates in YYYY-MM-DD format. Example: ["2026-02-26"]'),
+      .describe('One or more dates in YYYY-MM-DD format. Example: ["2026-02-24", "2026-02-25"]'),
     project_id: z
       .string()
-      .describe("Project ID from get_projects"),
+      .describe("Project ID — get valid IDs from `get_projects`"),
     hours: z
       .string()
       .default("8")
-      .describe("Hours to log (default 8)"),
+      .describe("Hours to log per day (default: 8)"),
     category: z
       .string()
       .default("desarrollador")
-      .describe("Category: desarrollador, pm, testing, arquitecto, otro"),
+      .describe("One of: desarrollador, pm, testing, arquitecto, otro (default: desarrollador)"),
     description: z
       .string()
-      .describe("What you worked on"),
+      .describe("Work description for the time entry"),
     extra_allocation: z
       .boolean()
       .default(false)
-      .describe("Extra allocation (secondary projects)"),
+      .describe("Set true only for secondary/extra project allocations"),
     in_home: z
       .boolean()
       .default(false)
-      .describe("Working from home"),
+      .describe("Set true if working from home"),
   },
   async ({ dates, project_id, hours, category, description, extra_allocation, in_home }) => {
     try {
@@ -220,9 +220,9 @@ server.tool(
 
 server.tool(
   "delete_hours",
-  "Delete an hour entry by its ID.",
+  "Delete an hour entry by its ID. Get the ID from `get_hours` results. This action is irreversible — confirm with the user before deleting.",
   {
-    id: z.string().describe("Hour entry ID (from get_hours)"),
+    id: z.string().describe("The numeric entry ID returned by `get_hours` (e.g. \"181608\")"),
   },
   async ({ id }) => {
     try {
