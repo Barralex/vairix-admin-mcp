@@ -106,7 +106,7 @@ server.tool(
 
 server.tool(
   "set_main_project",
-  "Set the user's main project for logging hours. Call `get_projects` first to see available projects. The main project is saved in the OS keychain and used as default for `create_hours`.",
+  "Set the user's main project for logging hours. Call `get_projects` first to see available projects. The main project is saved in the OS keychain and used as default for `create_hours`. IMPORTANT: When the user mentions a project by name (e.g. 'cargame horas en Seekr', 'log hours to ProjectX'), call `get_projects` to find the matching project_id, then call this tool to switch before creating hours.",
   {
     project_id: z.string().describe("The project ID from `get_projects`"),
     project_name: z.string().describe("The project name (for display)"),
@@ -193,7 +193,7 @@ server.tool(
 
 server.tool(
   "create_hours",
-  "Log hours for one or more dates. Uses the main project if project_id is omitted. Cannot log future dates. To update an existing entry, delete it first with `delete_hours` then recreate.",
+  "Log hours for one or more dates. Uses the main project if project_id is omitted — if the user mentions a different project by name, call `set_main_project` first to switch. Cannot log future dates. To update an existing entry, delete it first with `delete_hours` then recreate.",
   {
     dates: z
       .array(z.string())
