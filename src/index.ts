@@ -316,6 +316,7 @@ server.tool(
       .describe('One or more dates in YYYY-MM-DD format. Example: ["2026-02-24", "2026-02-25"]'),
     project_id: z
       .string()
+      .regex(/^\d+$/, "project_id must be numeric")
       .optional()
       .describe("Project ID — get valid IDs from `get_projects`. If omitted, uses the main project set via `set_main_project`."),
     hours: z
