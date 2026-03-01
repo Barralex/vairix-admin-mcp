@@ -204,14 +204,3 @@ export async function authenticate(): Promise<SessionData> {
   await saveSession(session);
   return session;
 }
-
-export async function getSession(): Promise<SessionData> {
-  const existing = await loadSession();
-
-  if (existing) {
-    const valid = await isSessionValid(existing);
-    if (valid) return existing;
-  }
-
-  return authenticate();
-}

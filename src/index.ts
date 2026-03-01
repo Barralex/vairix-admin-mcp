@@ -312,6 +312,7 @@ server.tool(
     hours: z
       .string()
       .default("8")
+      .refine((v) => { const n = Number(v); return !isNaN(n) && n > 0 && n <= 24; }, "Hours must be a number between 1 and 24")
       .describe("Hours to log per day (default: 8)"),
     category: z
       .string()

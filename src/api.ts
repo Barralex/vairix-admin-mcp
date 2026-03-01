@@ -339,14 +339,6 @@ export async function createHour(params: {
 export async function deleteHour(
   id: string
 ): Promise<{ success: boolean; message: string }> {
-  const res = await apiDelete(`/admin/daily_hours/${id}`);
-
-  if (res.status === 302 || res.status === 303 || res.status === 200) {
-    return { success: true, message: `Hour entry ${id} deleted` };
-  }
-
-  return {
-    success: false,
-    message: `Failed to delete (status ${res.status})`,
-  };
+  await apiDelete(`/admin/daily_hours/${id}`);
+  return { success: true, message: `Hour entry ${id} deleted` };
 }
