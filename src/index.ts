@@ -346,18 +346,19 @@ server.tool(
         return { content: [{ type: "text", text: `Cannot log future dates: ${futureDates.join(", ")}` }] };
       }
 
+      const BATCH_SIZE = 3;
       const results: string[] = [];
-      for (const date of dates) {
-        const res = await createHour({
-          date,
-          project_id: pid,
-          hours,
-          category,
-          description,
-          extra_allocation,
-          in_home,
-        });
-        results.push(`${date}: ${res.success ? "OK" : res.message}`);
+      for (let i = 0; i < dates.length; i += BATCH_SIZE) {
+        const batch = dates.slice(i, i + BATCH_SIZE);
+        const batchResults = await Promise.all(
+          batch.map((date) =>
+            createHour({ date, project_id: pid, hours, category, description, extra_allocation, in_home })
+          )
+        );
+        for (let j = 0; j < batch.length; j++) {
+          const res = batchResults[j];
+          results.push(`${batch[j]}: ${res.success ? "OK" : res.message}`);
+        }
       }
       return { content: [{ type: "text", text: `Results:\n${results.join("\n")}` }] };
     } catch (e) {
