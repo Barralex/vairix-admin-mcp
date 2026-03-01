@@ -62,6 +62,27 @@ export async function isSessionValid(session: SessionData): Promise<boolean> {
   }
 }
 
+function getScreenSize(): { width: number; height: number } {
+  try {
+    if (process.platform === "win32") {
+      const output = execSync(
+        'powershell -Command "Add-Type -AssemblyName System.Windows.Forms; $s = [System.Windows.Forms.Screen]::PrimaryScreen.WorkingArea; Write-Output \\"$($s.Width),$($s.Height)\\""',
+        { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }
+      ).trim();
+      const [w, h] = output.split(",").map(Number);
+      if (w && h) return { width: w, height: h };
+    } else if (process.platform === "darwin") {
+      const output = execSync(
+        "system_profiler SPDisplaysDataType 2>/dev/null | grep Resolution",
+        { encoding: "utf-8", stdio: ["pipe", "pipe", "ignore"] }
+      ).trim();
+      const match = output.match(/(\d+)\s*x\s*(\d+)/);
+      if (match) return { width: Number(match[1]), height: Number(match[2]) };
+    }
+  } catch {}
+  return { width: 1920, height: 1080 };
+}
+
 function findChromiumBrowser(): string {
   const paths = [
     // macOS - Chrome
@@ -110,6 +131,9 @@ export async function authenticate(): Promise<SessionData> {
 
   const windowWidth = 900;
   const windowHeight = 700;
+  const screen = getScreenSize();
+  const left = Math.round((screen.width - windowWidth) / 2);
+  const top = Math.round((screen.height - windowHeight) / 2);
 
   const browser = await chromium.launch({
     headless: false,
@@ -117,6 +141,7 @@ export async function authenticate(): Promise<SessionData> {
     args: [
       "--disable-blink-features=AutomationControlled",
       `--window-size=${windowWidth},${windowHeight}`,
+      `--window-position=${left},${top}`,
     ],
   });
 
@@ -124,15 +149,6 @@ export async function authenticate(): Promise<SessionData> {
     viewport: { width: windowWidth, height: windowHeight - 80 },
   });
   const page = await context.newPage();
-
-  await page.evaluate(
-    ({ w, h }) => {
-      const left = Math.round((screen.width - w) / 2);
-      const top = Math.round((screen.height - h) / 2);
-      window.moveTo(left, top);
-    },
-    { w: windowWidth, h: windowHeight }
-  );
 
   await page.goto(LOGIN_URL);
   await page.waitForLoadState("domcontentloaded");
