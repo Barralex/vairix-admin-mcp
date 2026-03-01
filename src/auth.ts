@@ -1,5 +1,6 @@
 import { chromium } from "playwright-core";
 import { existsSync } from "fs";
+import { execSync } from "child_process";
 import keytar from "keytar";
 
 const SERVICE = "vairix-admin-mcp";
@@ -107,16 +108,45 @@ function findChromiumBrowser(): string {
 export async function authenticate(): Promise<SessionData> {
   const chromePath = findChromiumBrowser();
 
+  const windowWidth = 900;
+  const windowHeight = 700;
+
   const browser = await chromium.launch({
     headless: false,
     executablePath: chromePath,
-    args: ["--disable-blink-features=AutomationControlled"],
+    args: [
+      "--disable-blink-features=AutomationControlled",
+      `--window-size=${windowWidth},${windowHeight}`,
+    ],
   });
 
-  const context = await browser.newContext();
+  const context = await browser.newContext({
+    viewport: { width: windowWidth, height: windowHeight - 80 },
+  });
   const page = await context.newPage();
 
+  await page.evaluate(
+    ({ w, h }) => {
+      const left = Math.round((screen.width - w) / 2);
+      const top = Math.round((screen.height - h) / 2);
+      window.moveTo(left, top);
+    },
+    { w: windowWidth, h: windowHeight }
+  );
+
   await page.goto(LOGIN_URL);
+  await page.waitForLoadState("domcontentloaded");
+
+  if (process.platform === "win32") {
+    try {
+      execSync(
+        `powershell -Command "(New-Object -ComObject WScript.Shell).AppActivate('admin.vairix.com')"`,
+        { stdio: "ignore" }
+      );
+    } catch {}
+  } else {
+    await page.bringToFront();
+  }
 
   // Wait for the user to login - detect redirect away from /login
   await page.waitForURL((url) => !url.toString().includes("/login"), {
