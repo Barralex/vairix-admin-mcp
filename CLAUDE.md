@@ -35,6 +35,7 @@ src/
 - Session validation: GET `/admin/daily_hours.json?scope=today` — 200 means valid, redirect means expired.
 - **Future dates are rejected** — never attempt to create hours for dates after today.
 - **Holidays and vacations** are logged by HR in the admin as regular hour entries. `getPendingDays` correctly excludes them since they already have hours. No special holiday logic needed.
+- **Batch delete unreliable** — the `batch_action` endpoint works in the UI but fails silently via our HTTP calls (not fully investigated). We delete individually in parallel instead.
 
 ## Commands
 

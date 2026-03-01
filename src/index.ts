@@ -10,7 +10,6 @@ import {
   getProjects,
   createHour,
   deleteHour,
-  batchDeleteHours,
   categoryName,
   type HourEntry,
   type GetHoursFilter,
@@ -311,9 +310,10 @@ server.tool(
   "create_hours",
   "Log hours for one or more dates. Uses the main project if project_id is omitted — if the user mentions a different project by name, call `set_main_project` first to switch. Cannot log future dates. To update an existing entry, delete it first with `delete_hours` then recreate.",
   {
-    dates: z
-      .array(z.string())
-      .describe('One or more dates in YYYY-MM-DD format. Example: ["2026-02-24", "2026-02-25"]'),
+    dates: z.union([
+      z.array(z.string()),
+      z.string().transform((s) => JSON.parse(s) as string[]),
+    ]).pipe(z.array(z.string()).min(1)).describe('One or more dates in YYYY-MM-DD format. Example: ["2026-02-24", "2026-02-25"]'),
     project_id: z
       .string()
       .regex(/^\d+$/, "project_id must be numeric")
@@ -382,17 +382,21 @@ server.tool(
   "delete_hours",
   "Delete one or more hour entries by ID. Get IDs from `get_hours` results. This action is irreversible — you MUST confirm with the user before calling this tool, listing the entries that will be deleted. Pass a single ID as ['123'] or multiple as ['123','456']. Multiple IDs use a single batch request.",
   {
-    ids: z.array(z.string()).min(1).describe("Entry IDs to delete. Example: ['182353'] or ['182353','182351','182350']"),
+    ids: z.union([
+      z.array(z.string()),
+      z.string().transform((s) => JSON.parse(s) as string[]),
+    ]).pipe(z.array(z.string()).min(1)).describe("Entry IDs to delete. Example: ['182353'] or ['182353','182351','182350']"),
   },
   { destructiveHint: true, openWorldHint: true },
   async ({ ids }) => {
     try {
-      if (ids.length === 1) {
-        const res = await deleteHour(ids[0]);
-        return { content: [{ type: "text", text: res.message }] };
-      }
-      const res = await batchDeleteHours(ids);
-      return { content: [{ type: "text", text: res.message }] };
+      const results = await Promise.all(ids.map((id) => deleteHour(id).then(() => id).catch((e) => `${id}: ${e instanceof Error ? e.message : e}`)));
+      const deleted = results.filter((r) => !r.includes(":"));
+      const failed = results.filter((r) => r.includes(":"));
+      const parts: string[] = [];
+      if (deleted.length) parts.push(`${deleted.length} entries deleted`);
+      if (failed.length) parts.push(`Failed: ${failed.join(", ")}`);
+      return { content: [{ type: "text", text: parts.join(". ") }], ...(failed.length ? { isError: true } : {}) };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
