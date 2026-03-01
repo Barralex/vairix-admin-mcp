@@ -27,8 +27,8 @@ No more clicking through forms -- just describe what you need in plain language.
 
 One command. That's it.
 
-```console
-$ claude mcp add vairix-admin -s user -- npx --yes github:Barralex/vairix-admin-mcp
+```bash
+claude mcp add vairix-admin -s user -- npx --yes github:Barralex/vairix-admin-mcp
 ```
 
 > `-s user` makes it available across **all** your projects, not just the current one.
@@ -36,11 +36,11 @@ $ claude mcp add vairix-admin -s user -- npx --yes github:Barralex/vairix-admin-
 <details>
 <summary>Clone manually instead</summary>
 
-```console
-$ git clone git@github.com:Barralex/vairix-admin-mcp.git
-$ cd vairix-admin-mcp
-$ npm install
-$ claude mcp add vairix-admin -s user -- node $(pwd)/build/index.js
+```bash
+git clone git@github.com:Barralex/vairix-admin-mcp.git
+cd vairix-admin-mcp
+npm install
+claude mcp add vairix-admin -s user -- node $(pwd)/build/index.js
 ```
 
 </details>
@@ -48,8 +48,8 @@ $ claude mcp add vairix-admin -s user -- node $(pwd)/build/index.js
 <details>
 <summary>Uninstall</summary>
 
-```console
-$ claude mcp remove vairix-admin -s user
+```bash
+claude mcp remove vairix-admin -s user
 ```
 
 </details>
@@ -124,11 +124,11 @@ Your credentials are handled carefully:
 
 ## Development
 
-```console
-$ npm run dev          # watch mode
-$ npm run build        # compile
-$ npm test             # run tests
-$ npm start            # run server
+```bash
+npm run dev          # watch mode
+npm run build        # compile
+npm test             # run tests
+npm start            # run server
 ```
 
 ## Requirements
