@@ -164,10 +164,14 @@ export async function authenticate(): Promise<SessionData> {
     await page.bringToFront();
   }
 
-  // Wait for the user to login - detect redirect away from /login
-  await page.waitForURL((url) => !url.toString().includes("/login"), {
-    timeout: 300_000, // 5 minutes
-  });
+  try {
+    await page.waitForURL((url) => !url.toString().includes("/login"), {
+      timeout: 120_000,
+    });
+  } catch {
+    await browser.close();
+    throw new Error("Login timed out. Chrome was closed or login was not completed in time. Try again with `auth`.");
+  }
 
   await page.waitForLoadState("networkidle");
 
