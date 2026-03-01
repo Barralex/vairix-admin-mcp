@@ -28,12 +28,6 @@
 claude mcp add vairix-admin -- npx github:Barralex/vairix-admin-mcp
 ```
 
-Then tell Claude:
-
-> "Authenticate with Vairix Admin"
-
-Your browser opens. You login. It closes. Done.
-
 <details>
 <summary><strong>Alternative: clone manually</strong></summary>
 
