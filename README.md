@@ -19,13 +19,22 @@ You  ->  Claude Code  ->  MCP Server (local)  ->  admin.vairix.com
 | `create_hours` | Logs hours for one or more dates. |
 | `delete_hours` | Deletes an hour entry by ID. |
 
-## Setup
+## Install
 
-```bash
-claude mcp add vairix-admin -- npx github:Barralex/vairix-admin-mcp
+### 1. Configure npm for GitHub Packages
+
+Create a GitHub Personal Access Token with `read:packages` scope, then add to your `~/.npmrc`:
+
+```
+@vairix:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
 ```
 
-That's it. Requires access to the private repo.
+### 2. Add the MCP server
+
+```bash
+claude mcp add vairix-admin -- npx @vairix/admin-mcp
+```
 
 <details>
 <summary>Alternative: clone manually</summary>
