@@ -57,6 +57,8 @@ claude mcp add vairix-admin -- node $(pwd)/build/index.js
 "Log 8 hours on Seekr for today: Working on feature X"
 "Log 8h of Seekr for Monday through Friday: Sprint planning"
 "Show my hours for this month"
+"How many hours did I log on Seekr?"
+"Show me a breakdown by category"
 "Delete the hour entry from today"
 ```
 
@@ -67,9 +69,11 @@ claude mcp add vairix-admin -- node $(pwd)/build/index.js
 | `auth` | Opens Chrome for login. Saves session to OS keychain. |
 | `auth_status` | Checks if your session is still valid. |
 | `logout` | Clears session from keychain. |
+| `set_main_project` | Sets your default project for logging hours. |
 | `get_pending_days` | Lists workdays missing hour entries. |
-| `get_hours` | Lists logged hours (`current_month` `today` `yesterday` `all`). |
+| `get_hours` | Lists logged hours. Supports filters by project, date range, and scope. |
 | `get_projects` | Lists your available projects. |
+| `get_hours_summary` | Aggregated totals with breakdown by project, category, or date. |
 | `create_hours` | Logs hours for one or more dates. |
 | `delete_hours` | Deletes an hour entry by ID. |
 
