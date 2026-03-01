@@ -59,6 +59,7 @@ server.tool(
           type: "text",
           text: `Auth failed: ${e instanceof Error ? e.message : e}`,
         }],
+        isError: true,
       };
     }
   }
@@ -123,7 +124,7 @@ server.tool(
         content: [{ type: "text", text: `Main project set to [${project_id}] ${project_name}.` }],
       };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
@@ -146,7 +147,7 @@ server.tool(
         }],
       };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
@@ -200,7 +201,7 @@ server.tool(
         }],
       };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
@@ -223,7 +224,7 @@ server.tool(
         }],
       };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
@@ -301,7 +302,7 @@ server.tool(
         }],
       };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
@@ -345,14 +346,14 @@ server.tool(
       if (!pid) {
         const mainProject = await loadMainProject();
         if (!mainProject) {
-          return { content: [{ type: "text", text: "No project_id provided and no main project set. Use `set_main_project` first or pass a project_id." }] };
+          return { content: [{ type: "text", text: "No project_id provided and no main project set. Use `set_main_project` first or pass a project_id." }], isError: true };
         }
         pid = mainProject.id;
       }
       const today = new Date().toISOString().slice(0, 10);
       const futureDates = dates.filter((d) => d > today);
       if (futureDates.length > 0) {
-        return { content: [{ type: "text", text: `Cannot log future dates: ${futureDates.join(", ")}` }] };
+        return { content: [{ type: "text", text: `Cannot log future dates: ${futureDates.join(", ")}` }], isError: true };
       }
 
       const BATCH_SIZE = 3;
@@ -371,7 +372,7 @@ server.tool(
       }
       return { content: [{ type: "text", text: `Results:\n${results.join("\n")}` }] };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
@@ -388,7 +389,7 @@ server.tool(
     try {
       const toDelete = ids ?? (id ? [id] : []);
       if (toDelete.length === 0) {
-        return { content: [{ type: "text", text: "No IDs provided. Pass `id` for a single entry or `ids` for multiple." }] };
+        return { content: [{ type: "text", text: "No IDs provided. Pass `id` for a single entry or `ids` for multiple." }], isError: true };
       }
       if (toDelete.length === 1) {
         const res = await deleteHour(toDelete[0]);
@@ -397,7 +398,7 @@ server.tool(
       const res = await batchDeleteHours(toDelete);
       return { content: [{ type: "text", text: res.message }] };
     } catch (e) {
-      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
     }
   }
 );
