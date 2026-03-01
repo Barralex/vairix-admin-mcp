@@ -21,16 +21,24 @@ You  ->  Claude Code  ->  MCP Server (local)  ->  admin.vairix.com
 
 ## Install
 
-### 1. Configure npm for GitHub Packages
+> **Important:** This package is hosted on GitHub Packages, not npmjs. You must configure npm before installing.
 
-Create a GitHub Personal Access Token with `read:packages` scope, then add to your `~/.npmrc`:
+### 1. Create a GitHub Personal Access Token
+
+Go to [GitHub Settings > Tokens](https://github.com/settings/tokens) and create a **classic** token with the `read:packages` scope.
+
+### 2. Configure npm
+
+Add this to your `~/.npmrc` (create the file if it doesn't exist):
 
 ```
 @barralex:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
 ```
 
-### 2. Add the MCP server
+Replace `YOUR_GITHUB_PAT` with the token from step 1. Without this, `npm` won't know where to find the package and the install will fail.
+
+### 3. Add the MCP server
 
 ```bash
 claude mcp add vairix-admin -- npx @barralex/admin-mcp
