@@ -156,7 +156,18 @@ server.tool(
   },
   async ({ scope }) => {
     try {
-      const hours = await getHours(scope);
+      let hours = await getHours(scope);
+
+      if (scope === "current_month") {
+        const now = new Date();
+        const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+        if (!hours.some((h) => h.initial_date.startsWith(monthPrefix))) {
+          const monthStart = `${monthPrefix}-01`;
+          const todayStr = `${monthPrefix}-${String(now.getDate()).padStart(2, "0")}`;
+          hours = await getHours("all", { from: monthStart, to: todayStr });
+        }
+      }
+
       return {
         content: [{
           type: "text",

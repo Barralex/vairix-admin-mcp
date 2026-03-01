@@ -2,11 +2,22 @@ import { loadSession, isSessionValid, type SessionData } from "./auth.js";
 
 const BASE_URL = "https://admin.vairix.com";
 
+// Session cache with TTL — avoids re-validating on every tool call
 let cachedSession: SessionData | null = null;
+let sessionValidatedAt = 0;
+const SESSION_TTL = 60_000;
 
 async function session(): Promise<SessionData> {
-  if (cachedSession && (await isSessionValid(cachedSession))) {
+  if (cachedSession && Date.now() - sessionValidatedAt < SESSION_TTL) {
     return cachedSession;
+  }
+
+  if (cachedSession) {
+    const valid = await isSessionValid(cachedSession);
+    if (valid) {
+      sessionValidatedAt = Date.now();
+      return cachedSession;
+    }
   }
 
   const saved = await loadSession();
@@ -15,8 +26,82 @@ async function session(): Promise<SessionData> {
   const valid = await isSessionValid(saved);
   if (!valid) throw new Error("Session expired. Use the `auth` tool to login again.");
 
+  if (!cachedSession || cachedSession.cookies !== saved.cookies) {
+    formDataCache = null;
+  }
   cachedSession = saved;
+  sessionValidatedAt = Date.now();
   return saved;
+}
+
+// Unified form data cache — CSRF tokens, staffId, and projects from /admin/daily_hours/new
+export interface ProjectOption {
+  id: string;
+  name: string;
+}
+
+interface FormData {
+  csrfFormToken: string;
+  csrfMetaToken: string;
+  staffId: string;
+  projects: ProjectOption[];
+  fetchedAt: number;
+}
+
+let formDataCache: FormData | null = null;
+const FORM_DATA_TTL = 300_000;
+
+async function fetchFormData(): Promise<FormData> {
+  if (formDataCache && Date.now() - formDataCache.fetchedAt < FORM_DATA_TTL) {
+    return formDataCache;
+  }
+
+  const s = await session();
+  const res = await fetch(`${BASE_URL}/admin/daily_hours/new`, {
+    headers: { Cookie: s.cookies },
+    redirect: "follow",
+  });
+  if (res.status !== 200) throw new Error(`Failed to load form: ${res.status}`);
+  const html = await res.text();
+
+  const formTokenMatch = html.match(
+    /name="authenticity_token"[^>]*value="([^"]+)"/
+  );
+  const csrfFormToken = formTokenMatch ? formTokenMatch[1] : s.csrfToken;
+
+  const metaTokenMatch = html.match(
+    /meta name="csrf-token" content="([^"]+)"/
+  );
+  const csrfMetaToken = metaTokenMatch ? metaTokenMatch[1] : s.csrfToken;
+
+  let staffId = "";
+  const staffMatch = html.match(
+    /name="daily_hour\[staff_id\]"[\s\S]*?option[^>]*value="(\d+)"[^>]*selected/
+  );
+  if (staffMatch) {
+    staffId = staffMatch[1];
+  } else {
+    const altMatch = html.match(
+      /name="daily_hour\[staff_id\]"[\s\S]*?selected[^>]*value="(\d+)"/
+    );
+    if (altMatch) staffId = altMatch[1];
+    else throw new Error("Could not find staff_id");
+  }
+
+  const projects: ProjectOption[] = [];
+  const projectSelectMatch = html.match(
+    /name="daily_hour\[project_id\]"[^>]*>([\s\S]*?)<\/select>/
+  );
+  if (projectSelectMatch) {
+    const regex = /<option value="(\d+)">([^<]+)<\/option>/g;
+    let m;
+    while ((m = regex.exec(projectSelectMatch[1])) !== null) {
+      projects.push({ id: m[1], name: m[2] });
+    }
+  }
+
+  formDataCache = { csrfFormToken, csrfMetaToken, staffId, projects, fetchedAt: Date.now() };
+  return formDataCache;
 }
 
 async function apiGet(path: string): Promise<Response> {
@@ -32,20 +117,10 @@ async function apiPost(
   body: Record<string, string>
 ): Promise<Response> {
   const s = await session();
-
-  // Get fresh CSRF token from the new form page
-  const formRes = await fetch(`${BASE_URL}${path}/new`, {
-    headers: { Cookie: s.cookies },
-    redirect: "follow",
-  });
-  const formHtml = await formRes.text();
-  const csrfMatch = formHtml.match(
-    /name="authenticity_token"[^>]*value="([^"]+)"/
-  );
-  const csrf = csrfMatch ? csrfMatch[1] : s.csrfToken;
+  const form = await fetchFormData();
 
   const params = new URLSearchParams({
-    authenticity_token: csrf,
+    authenticity_token: form.csrfFormToken,
     ...body,
   });
 
@@ -62,23 +137,13 @@ async function apiPost(
 
 async function apiDelete(path: string): Promise<Response> {
   const s = await session();
-
-  // Need CSRF for delete
-  const pageRes = await fetch(`${BASE_URL}/admin/daily_hours`, {
-    headers: { Cookie: s.cookies },
-    redirect: "follow",
-  });
-  const pageHtml = await pageRes.text();
-  const csrfMatch = pageHtml.match(
-    /meta name="csrf-token" content="([^"]+)"/
-  );
-  const csrf = csrfMatch ? csrfMatch[1] : s.csrfToken;
+  const form = await fetchFormData();
 
   return fetch(`${BASE_URL}${path}`, {
     method: "DELETE",
     headers: {
       Cookie: s.cookies,
-      "X-CSRF-Token": csrf,
+      "X-CSRF-Token": form.csrfMetaToken,
     },
     redirect: "manual",
   });
@@ -98,11 +163,6 @@ export interface HourEntry {
   in_home: boolean;
   confirm: boolean;
   billable: boolean | null;
-}
-
-export interface ProjectOption {
-  id: string;
-  name: string;
 }
 
 const CATEGORY_MAP: Record<number, string> = {
@@ -136,27 +196,43 @@ export function categoryId(name: string): string {
 }
 
 export async function getHours(
-  scope: string = "current_month"
+  scope: string = "current_month",
+  dateRange?: { from: string; to: string }
 ): Promise<HourEntry[]> {
-  const res = await apiGet(`/admin/daily_hours.json?scope=${scope}`);
+  const params = new URLSearchParams({ scope });
+  if (dateRange) {
+    params.set("q[initial_date_gteq]", dateRange.from);
+    params.set("q[initial_date_lteq]", dateRange.to);
+  }
+  const res = await apiGet(`/admin/daily_hours.json?${params}`);
   if (res.status !== 200) throw new Error(`Failed to get hours: ${res.status}`);
   return res.json();
 }
 
 export async function getPendingDays(): Promise<string[]> {
-  const hours = await getHours("current_month");
-  const loggedDates = new Set(hours.map((h) => h.initial_date));
-
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
   const today = now.getDate();
+  const monthPrefix = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const monthStart = `${monthPrefix}-01`;
+  const todayStr = `${monthPrefix}-${String(today).padStart(2, "0")}`;
+
+  let hours = await getHours("current_month");
+
+  // At month boundaries, server (UTC) may be in a different month than the client.
+  // Use date range filters instead of fetching all hours.
+  if (!hours.some((h) => h.initial_date.startsWith(monthPrefix))) {
+    hours = await getHours("all", { from: monthStart, to: todayStr });
+  }
+
+  const loggedDates = new Set(hours.map((h) => h.initial_date));
 
   const pending: string[] = [];
   for (let day = 1; day <= today; day++) {
     const d = new Date(year, month, day);
     const dow = d.getDay();
-    if (dow === 0 || dow === 6) continue; // skip weekends
+    if (dow === 0 || dow === 6) continue;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
     if (!loggedDates.has(dateStr)) pending.push(dateStr);
   }
@@ -165,39 +241,7 @@ export async function getPendingDays(): Promise<string[]> {
 }
 
 export async function getProjects(): Promise<ProjectOption[]> {
-  const res = await apiGet("/admin/daily_hours/new");
-  if (res.status !== 200)
-    throw new Error(`Failed to get projects: ${res.status}`);
-  const html = await res.text();
-
-  const projects: ProjectOption[] = [];
-  const projectSelectMatch = html.match(
-    /name="daily_hour\[project_id\]"[^>]*>([\s\S]*?)<\/select>/
-  );
-  if (!projectSelectMatch) return projects;
-
-  const regex = /<option value="(\d+)">([^<]+)<\/option>/g;
-  let m;
-  while ((m = regex.exec(projectSelectMatch[1])) !== null) {
-    projects.push({ id: m[1], name: m[2] });
-  }
-  return projects;
-}
-
-async function getStaffId(): Promise<string> {
-  const res = await apiGet("/admin/daily_hours/new");
-  if (res.status !== 200) throw new Error(`Failed to get staff id: ${res.status}`);
-  const html = await res.text();
-
-  const match = html.match(
-    /name="daily_hour\[staff_id\]"[\s\S]*?option[^>]*value="(\d+)"[^>]*selected/
-  );
-  if (match) return match[1];
-
-  const alt = html.match(/name="daily_hour\[staff_id\]"[\s\S]*?selected[^>]*value="(\d+)"/);
-  if (alt) return alt[1];
-
-  throw new Error("Could not find staff_id");
+  return (await fetchFormData()).projects;
 }
 
 export async function createHour(params: {
@@ -209,7 +253,7 @@ export async function createHour(params: {
   extra_allocation?: boolean;
   in_home?: boolean;
 }): Promise<{ success: boolean; message: string }> {
-  const staffId = await getStaffId();
+  const { staffId } = await fetchFormData();
 
   const body: Record<string, string> = {
     "daily_hour[initial_date]": params.date,
@@ -229,7 +273,6 @@ export async function createHour(params: {
     return { success: true, message: `Hours created for ${params.date}` };
   }
 
-  // If 200, Active Admin re-rendered the form with errors
   const responseBody = await res.text();
   const errorMatch = responseBody.match(/<li>([^<]+)<\/li>/g);
   const errors = errorMatch
