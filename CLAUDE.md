@@ -15,7 +15,7 @@ src/
 
 - **auth.ts**: Opens system Chrome for manual login, captures cookies, stores session in OS keychain via `keytar`. No passwords stored.
 - **api.ts**: Stateless HTTP requests using session cookies + CSRF tokens. Parses Active Admin HTML responses (no official API).
-- **index.ts**: Registers 8 MCP tools (auth, auth_status, logout, get_pending_days, get_hours, get_projects, create_hours, delete_hours).
+- **index.ts**: Registers 10 MCP tools (auth, auth_status, logout, set_main_project, get_pending_days, get_hours, get_projects, get_hours_summary, create_hours, delete_hours).
 
 ## Tech Stack
 

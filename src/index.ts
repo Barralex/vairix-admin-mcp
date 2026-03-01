@@ -12,6 +12,7 @@ import {
   deleteHour,
   categoryName,
   type HourEntry,
+  type GetHoursFilter,
 } from "./api.js";
 
 const server = new McpServer({
@@ -24,7 +25,7 @@ function formatHours(hours: HourEntry[]): string {
   return hours
     .map(
       (h) =>
-        `[${h.id}] ${h.initial_date} | ${h.hours}h | ${categoryName(h.category)} | ${h.description}${h.extra_allocation ? " (Extra)" : ""}`
+        `[${h.id}] ${h.initial_date} | ${h.hours}h | project:${h.project_id} | ${categoryName(h.category)} | ${h.description}${h.extra_allocation ? " (Extra)" : ""}`
     )
     .join("\n");
 }
@@ -147,31 +148,49 @@ server.tool(
 
 server.tool(
   "get_hours",
-  "Get the user's logged hour entries. Returns ID, date, hours, category, and description for each entry. Use the ID from results to delete entries with `delete_hours`.",
+  "Get the user's logged hour entries. Returns ID, date, hours, project_id, category, and description for each entry. Use the ID from results to delete entries with `delete_hours`. For totals and aggregation, use `get_hours_summary` instead.",
   {
     scope: z
       .enum(["current_month", "all", "today", "yesterday"])
       .default("current_month")
       .describe("Time scope: current_month (default), today, yesterday, or all"),
+    project_id: z
+      .string()
+      .optional()
+      .describe("Filter by project ID (from `get_projects`)"),
+    date_from: z
+      .string()
+      .optional()
+      .describe("Filter start date (YYYY-MM-DD). Auto-sets scope to 'all'."),
+    date_to: z
+      .string()
+      .optional()
+      .describe("Filter end date (YYYY-MM-DD). Auto-sets scope to 'all'."),
   },
-  async ({ scope }) => {
+  async ({ scope, project_id, date_from, date_to }) => {
     try {
-      let hours = await getHours(scope);
+      const filter: GetHoursFilter = { scope };
+      if (project_id) filter.project_id = project_id;
+      if (date_from) { filter.date_from = date_from; filter.scope = "all"; }
+      if (date_to) { filter.date_to = date_to; filter.scope = "all"; }
 
-      if (scope === "current_month") {
+      let hours = await getHours(filter);
+
+      if (filter.scope === "current_month") {
         const now = new Date();
         const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
         if (!hours.some((h) => h.initial_date.startsWith(monthPrefix))) {
-          const monthStart = `${monthPrefix}-01`;
-          const todayStr = `${monthPrefix}-${String(now.getDate()).padStart(2, "0")}`;
-          hours = await getHours("all", { from: monthStart, to: todayStr });
+          filter.scope = "all";
+          filter.date_from = `${monthPrefix}-01`;
+          filter.date_to = `${monthPrefix}-${String(now.getDate()).padStart(2, "0")}`;
+          hours = await getHours(filter);
         }
       }
 
       return {
         content: [{
           type: "text",
-          text: `Hours (${scope}, ${hours.length} entries):\n${formatHours(hours)}`,
+          text: `Hours (${filter.scope}, ${hours.length} entries):\n${formatHours(hours)}`,
         }],
       };
     } catch (e) {
@@ -194,6 +213,83 @@ server.tool(
         content: [{
           type: "text",
           text: `Available projects:\n${projects.map((p) => `- [${p.id}] ${p.name}`).join("\n")}`,
+        }],
+      };
+    } catch (e) {
+      return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };
+    }
+  }
+);
+
+server.tool(
+  "get_hours_summary",
+  "Get aggregated hour totals with breakdown. Use this for questions like 'how many hours on project X?' or 'hours by category this month'. Defaults to current month.",
+  {
+    project_id: z
+      .string()
+      .optional()
+      .describe("Filter by project ID (from `get_projects`)"),
+    date_from: z
+      .string()
+      .optional()
+      .describe("Start date (YYYY-MM-DD). Defaults to first day of current month."),
+    date_to: z
+      .string()
+      .optional()
+      .describe("End date (YYYY-MM-DD). Defaults to today."),
+    group_by: z
+      .enum(["project", "category", "date"])
+      .default("project")
+      .describe("How to group the breakdown: project, category, or date"),
+  },
+  async ({ project_id, date_from, date_to, group_by }) => {
+    try {
+      const now = new Date();
+      const monthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const effectiveFrom = date_from ?? `${monthPrefix}-01`;
+      const effectiveTo = date_to ?? `${monthPrefix}-${String(now.getDate()).padStart(2, "0")}`;
+
+      const filter: GetHoursFilter = {
+        scope: "all",
+        date_from: effectiveFrom,
+        date_to: effectiveTo,
+      };
+      if (project_id) filter.project_id = project_id;
+
+      const hours = await getHours(filter);
+      const totalHours = hours.reduce((sum, h) => sum + h.hours, 0);
+
+      const projectMap = new Map<string, string>();
+      if (group_by === "project") {
+        const projects = await getProjects();
+        for (const p of projects) projectMap.set(p.id, p.name);
+      }
+
+      const groups = new Map<string, number>();
+      for (const h of hours) {
+        let key: string;
+        if (group_by === "project") {
+          key = projectMap.get(String(h.project_id)) ?? `Project ${h.project_id}`;
+        } else if (group_by === "category") {
+          key = categoryName(h.category);
+        } else {
+          key = h.initial_date;
+        }
+        groups.set(key, (groups.get(key) ?? 0) + h.hours);
+      }
+
+      const sorted = [...groups.entries()].sort((a, b) => b[1] - a[1]);
+      const breakdown = sorted
+        .map(([key, hrs]) => {
+          const pct = totalHours > 0 ? ((hrs / totalHours) * 100).toFixed(1) : "0.0";
+          return `- ${key}: ${hrs}h (${pct}%)`;
+        })
+        .join("\n");
+
+      return {
+        content: [{
+          type: "text",
+          text: `Summary (${effectiveFrom} to ${effectiveTo}, ${hours.length} entries):\nTotal: ${totalHours}h\n\nBreakdown by ${group_by}:\n${breakdown}`,
         }],
       };
     } catch (e) {

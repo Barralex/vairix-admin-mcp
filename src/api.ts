@@ -195,18 +195,37 @@ export function categoryId(name: string): string {
   return CATEGORY_REVERSE[name.toLowerCase()] ?? "1";
 }
 
+export interface GetHoursFilter {
+  scope?: string;
+  date_from?: string;
+  date_to?: string;
+  project_id?: string;
+}
+
+const MAX_PAGES = 10;
+const PER_PAGE = 100;
+
 export async function getHours(
-  scope: string = "current_month",
-  dateRange?: { from: string; to: string }
+  filter: GetHoursFilter = {}
 ): Promise<HourEntry[]> {
-  const params = new URLSearchParams({ scope });
-  if (dateRange) {
-    params.set("q[initial_date_gteq]", dateRange.from);
-    params.set("q[initial_date_lteq]", dateRange.to);
+  const { scope = "current_month", date_from, date_to, project_id } = filter;
+
+  const all: HourEntry[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const params = new URLSearchParams({ scope, page: String(page), per_page: String(PER_PAGE) });
+    if (date_from) params.set("q[initial_date_gteq]", date_from);
+    if (date_to) params.set("q[initial_date_lteq]", date_to);
+    if (project_id) params.set("q[project_id_eq]", project_id);
+
+    const res = await apiGet(`/admin/daily_hours.json?${params}`);
+    if (res.status !== 200) throw new Error(`Failed to get hours: ${res.status}`);
+
+    const entries: HourEntry[] = await res.json();
+    all.push(...entries);
+    if (entries.length < PER_PAGE) break;
   }
-  const res = await apiGet(`/admin/daily_hours.json?${params}`);
-  if (res.status !== 200) throw new Error(`Failed to get hours: ${res.status}`);
-  return res.json();
+
+  return all;
 }
 
 export async function getPendingDays(): Promise<string[]> {
@@ -218,12 +237,12 @@ export async function getPendingDays(): Promise<string[]> {
   const monthStart = `${monthPrefix}-01`;
   const todayStr = `${monthPrefix}-${String(today).padStart(2, "0")}`;
 
-  let hours = await getHours("current_month");
+  let hours = await getHours({ scope: "current_month" });
 
   // At month boundaries, server (UTC) may be in a different month than the client.
   // Use date range filters instead of fetching all hours.
   if (!hours.some((h) => h.initial_date.startsWith(monthPrefix))) {
-    hours = await getHours("all", { from: monthStart, to: todayStr });
+    hours = await getHours({ scope: "all", date_from: monthStart, date_to: todayStr });
   }
 
   const loggedDates = new Set(hours.map((h) => h.initial_date));

@@ -29,6 +29,17 @@ async function createConnectedServer() {
   server.tool("logout", "Logout", {}, async () => ({
     content: [{ type: "text" as const, text: "stub" }],
   }));
+  server.tool(
+    "set_main_project",
+    "Set main project",
+    {
+      project_id: z.string(),
+      project_name: z.string(),
+    },
+    async () => ({
+      content: [{ type: "text" as const, text: "stub" }],
+    })
+  );
   server.tool("get_pending_days", "Pending days", {}, async () => ({
     content: [{ type: "text" as const, text: "stub" }],
   }));
@@ -39,6 +50,9 @@ async function createConnectedServer() {
       scope: z
         .enum(["current_month", "all", "today", "yesterday"])
         .default("current_month"),
+      project_id: z.string().optional(),
+      date_from: z.string().optional(),
+      date_to: z.string().optional(),
     },
     async () => ({
       content: [{ type: "text" as const, text: "stub" }],
@@ -48,11 +62,24 @@ async function createConnectedServer() {
     content: [{ type: "text" as const, text: "stub" }],
   }));
   server.tool(
+    "get_hours_summary",
+    "Get hours summary",
+    {
+      project_id: z.string().optional(),
+      date_from: z.string().optional(),
+      date_to: z.string().optional(),
+      group_by: z.enum(["project", "category", "date"]).default("project"),
+    },
+    async () => ({
+      content: [{ type: "text" as const, text: "stub" }],
+    })
+  );
+  server.tool(
     "create_hours",
     "Create hours",
     {
       dates: z.array(z.string()),
-      project_id: z.string(),
+      project_id: z.string().optional(),
       hours: z.string().default("8"),
       category: z.string().default("desarrollador"),
       description: z.string(),
@@ -84,7 +111,7 @@ async function createConnectedServer() {
 }
 
 describe("MCP server protocol", () => {
-  it("lists all 8 tools", async () => {
+  it("lists all 10 tools", async () => {
     const { client } = await createConnectedServer();
     const result = await client.listTools();
     const names = result.tools.map((t) => t.name).sort();
@@ -94,29 +121,54 @@ describe("MCP server protocol", () => {
       "create_hours",
       "delete_hours",
       "get_hours",
+      "get_hours_summary",
       "get_pending_days",
       "get_projects",
       "logout",
+      "set_main_project",
     ]);
   });
 
-  it("get_hours has scope parameter with enum", async () => {
+  it("get_hours has scope parameter with enum and optional filters", async () => {
     const { client } = await createConnectedServer();
     const result = await client.listTools();
     const getHours = result.tools.find((t) => t.name === "get_hours")!;
     const props = getHours.inputSchema.properties as Record<string, any>;
     assert.ok(props.scope);
     assert.ok(props.scope.default === "current_month");
+    assert.ok(props.project_id);
+    assert.ok(props.date_from);
+    assert.ok(props.date_to);
   });
 
-  it("create_hours requires dates, project_id, description", async () => {
+  it("get_hours_summary has group_by with enum and optional filters", async () => {
+    const { client } = await createConnectedServer();
+    const result = await client.listTools();
+    const summary = result.tools.find((t) => t.name === "get_hours_summary")!;
+    const props = summary.inputSchema.properties as Record<string, any>;
+    assert.ok(props.group_by);
+    assert.ok(props.group_by.default === "project");
+    assert.ok(props.project_id);
+    assert.ok(props.date_from);
+    assert.ok(props.date_to);
+  });
+
+  it("create_hours requires dates and description", async () => {
     const { client } = await createConnectedServer();
     const result = await client.listTools();
     const createHours = result.tools.find((t) => t.name === "create_hours")!;
     const required = createHours.inputSchema.required as string[];
     assert.ok(required.includes("dates"));
-    assert.ok(required.includes("project_id"));
     assert.ok(required.includes("description"));
+  });
+
+  it("set_main_project requires project_id and project_name", async () => {
+    const { client } = await createConnectedServer();
+    const result = await client.listTools();
+    const tool = result.tools.find((t) => t.name === "set_main_project")!;
+    const required = tool.inputSchema.required as string[];
+    assert.ok(required.includes("project_id"));
+    assert.ok(required.includes("project_name"));
   });
 
   it("delete_hours requires id", async () => {
