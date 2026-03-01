@@ -339,6 +339,12 @@ server.tool(
         }
         pid = mainProject.id;
       }
+      const today = new Date().toISOString().slice(0, 10);
+      const futureDates = dates.filter((d) => d > today);
+      if (futureDates.length > 0) {
+        return { content: [{ type: "text", text: `Cannot log future dates: ${futureDates.join(", ")}` }] };
+      }
+
       const results: string[] = [];
       for (const date of dates) {
         const res = await createHour({

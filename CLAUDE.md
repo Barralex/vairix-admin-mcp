@@ -33,6 +33,7 @@ src/
 - `DELETE` requires `X-CSRF-Token` header.
 - Category mapping: 1=Desarrollador, 2=PM, 3=Testing, 4=Arquitecto, 5=Otro.
 - Session validation: GET `/admin/daily_hours.json?scope=today` — 200 means valid, redirect means expired.
+- **Future dates are rejected** — never attempt to create hours for dates after today.
 
 ## Commands
 
