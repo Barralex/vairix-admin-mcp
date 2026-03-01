@@ -37,6 +37,7 @@ server.tool(
   "auth",
   "Opens Chrome so the user can login to Vairix Admin manually. Required before using any other tool. Captures session cookies and stores them in the OS keychain. The user will see a Chrome window — do not call this without telling them first.",
   {},
+  { idempotentHint: true, openWorldHint: true },
   async () => {
     try {
       const session = await authenticate();
@@ -63,7 +64,7 @@ server.tool(
   }
 );
 
-server.tool("auth_status", "Check if the user has a valid session. Call this before other tools if unsure whether the user is authenticated. Returns the user's email and session age if valid.", {}, async () => {
+server.tool("auth_status", "Check if the user has a valid session. Call this before other tools if unsure whether the user is authenticated. Returns the user's email and session age if valid.", {}, { readOnlyHint: true, openWorldHint: true }, async () => {
   const session = await loadSession();
   if (!session) {
     return {
@@ -96,6 +97,7 @@ server.tool(
   "logout",
   "Clear the saved session from the OS keychain. The user will need to call `auth` again to re-authenticate.",
   {},
+  { destructiveHint: true, idempotentHint: true },
   async () => {
     try {
       await clearSession();
@@ -113,6 +115,7 @@ server.tool(
     project_id: z.string().describe("The project ID from `get_projects`"),
     project_name: z.string().describe("The project name (for display)"),
   },
+  { idempotentHint: true },
   async ({ project_id, project_name }) => {
     try {
       await saveMainProject(project_id, project_name);
@@ -129,6 +132,7 @@ server.tool(
   "get_pending_days",
   "Get workdays that are missing hour entries for the current month. Use this to find out which days the user still needs to log hours for.",
   {},
+  { readOnlyHint: true, openWorldHint: true },
   async () => {
     try {
       const days = await getPendingDays();
@@ -168,6 +172,7 @@ server.tool(
       .optional()
       .describe("Filter end date (YYYY-MM-DD). Auto-sets scope to 'all'."),
   },
+  { readOnlyHint: true, openWorldHint: true },
   async ({ scope, project_id, date_from, date_to }) => {
     try {
       const filter: GetHoursFilter = { scope };
@@ -204,6 +209,7 @@ server.tool(
   "get_projects",
   "List projects the user can log hours to. Returns project ID and name. You MUST call this before `create_hours` to get a valid project_id.",
   {},
+  { readOnlyHint: true, openWorldHint: true },
   async () => {
     try {
       const projects = await getProjects();
@@ -243,6 +249,7 @@ server.tool(
       .default("project")
       .describe("How to group the breakdown: project, category, or date"),
   },
+  { readOnlyHint: true, openWorldHint: true },
   async ({ project_id, date_from, date_to, group_by }) => {
     try {
       const now = new Date();
@@ -331,6 +338,7 @@ server.tool(
       .default(false)
       .describe("Set true if working from home"),
   },
+  { openWorldHint: true },
   async ({ dates, project_id, hours, category, description, extra_allocation, in_home }) => {
     try {
       let pid = project_id;
@@ -375,6 +383,7 @@ server.tool(
     id: z.string().describe("Single entry ID. Use this when deleting one entry.").optional(),
     ids: z.array(z.string()).describe("Multiple entry IDs for batch deletion in a single request. Preferred when deleting 2+ entries.").optional(),
   },
+  { destructiveHint: true, openWorldHint: true },
   async ({ id, ids }) => {
     try {
       const toDelete = ids ?? (id ? [id] : []);
