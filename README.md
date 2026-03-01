@@ -48,6 +48,16 @@ claude mcp add vairix-admin -- node $(pwd)/build/index.js
 
 ## Usage
 
+**Step 1** - Authenticate (only needed once per session)
+
+```
+"Authenticate with Vairix Admin"
+```
+
+↓
+
+**Step 2** - Ask away
+
 ```
 "What days am I missing hours for?"
 "Log 8 hours on Seekr for today: Working on feature X"
