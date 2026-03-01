@@ -380,23 +380,18 @@ server.tool(
 
 server.tool(
   "delete_hours",
-  "Delete one or more hour entries by ID. Get IDs from `get_hours` results. This action is irreversible — confirm with the user before deleting. Use `id` for a single entry or `ids` for bulk deletion (e.g. deleting all extra hours, clearing a date range). When deleting 2+ entries, always prefer `ids` — it uses a single batch request instead of multiple calls.",
+  "Delete one or more hour entries by ID. Get IDs from `get_hours` results. This action is irreversible — you MUST confirm with the user before calling this tool, listing the entries that will be deleted. Pass a single ID as ['123'] or multiple as ['123','456']. Multiple IDs use a single batch request.",
   {
-    id: z.string().describe("Single entry ID. Use this when deleting one entry.").optional(),
-    ids: z.array(z.string()).describe("Multiple entry IDs for batch deletion in a single request. Preferred when deleting 2+ entries.").optional(),
+    ids: z.array(z.string()).min(1).describe("Entry IDs to delete. Example: ['182353'] or ['182353','182351','182350']"),
   },
   { destructiveHint: true, openWorldHint: true },
-  async ({ id, ids }) => {
+  async ({ ids }) => {
     try {
-      const toDelete = ids ?? (id ? [id] : []);
-      if (toDelete.length === 0) {
-        return { content: [{ type: "text", text: "No IDs provided. Pass `id` for a single entry or `ids` for multiple." }], isError: true };
-      }
-      if (toDelete.length === 1) {
-        const res = await deleteHour(toDelete[0]);
+      if (ids.length === 1) {
+        const res = await deleteHour(ids[0]);
         return { content: [{ type: "text", text: res.message }] };
       }
-      const res = await batchDeleteHours(toDelete);
+      const res = await batchDeleteHours(ids);
       return { content: [{ type: "text", text: res.message }] };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };

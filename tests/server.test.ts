@@ -94,8 +94,7 @@ async function createConnectedServer() {
     "delete_hours",
     "Delete hours",
     {
-      id: z.string().optional(),
-      ids: z.array(z.string()).optional(),
+      ids: z.array(z.string()).min(1),
     },
     async () => ({
       content: [{ type: "text" as const, text: "stub" }],
@@ -174,17 +173,15 @@ describe("MCP server protocol", () => {
     assert.ok(required.includes("project_name"));
   });
 
-  it("delete_hours accepts optional id and ids for batch deletion", async () => {
+  it("delete_hours requires ids array", async () => {
     const { client } = await createConnectedServer();
     const result = await client.listTools();
     const deleteHours = result.tools.find((t) => t.name === "delete_hours")!;
     const props = deleteHours.inputSchema.properties as Record<string, any>;
-    assert.ok(props.id, "should have id parameter");
     assert.ok(props.ids, "should have ids parameter");
     assert.strictEqual(props.ids.type, "array", "ids should be an array");
     const required = (deleteHours.inputSchema.required as string[] | undefined) ?? [];
-    assert.ok(!required.includes("id"), "id should be optional");
-    assert.ok(!required.includes("ids"), "ids should be optional");
+    assert.ok(required.includes("ids"), "ids should be required");
   });
 
   it("tools without required params have empty/no required array", async () => {
