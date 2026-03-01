@@ -7,25 +7,31 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, '[skip ci]')"
     permissions:
       contents: write
       packages: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://npm.pkg.github.com
       - run: npm ci
       - run: npm run build
-      - run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          npm version patch -m "chore: bump to %s [skip ci]"
-          git push --follow-tags
+      - name: Resolve next version
+        run: |
+          LATEST=$(npm view @barralex/admin-mcp version 2>/dev/null || echo "0.0.0")
+          npm version --no-git-tag-version "$LATEST" --allow-same-version
+          npm version --no-git-tag-version patch
+          echo "VERSION=$(node -p "require('./package.json').version")" >> $GITHUB_ENV
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push version tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
