@@ -1,5 +1,5 @@
 {
-  "name": "@barralex/admin-mcp",
+  "name": "@vairix/admin-mcp",
   "version": "1.0.0",
   "description": "MCP server for Vairix Admin - automate time tracking with Claude",
   "type": "module",
@@ -23,13 +23,6 @@
     "claude",
     "active-admin"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/Barralex/vairix-admin-mcp.git"
-  },
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
   "author": "Vairix",
   "license": "MIT",
   "dependencies": {
