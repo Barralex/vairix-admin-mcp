@@ -1,5 +1,5 @@
 {
-  "name": "@vairix/admin-mcp",
+  "name": "@barralex/admin-mcp",
   "version": "1.0.0",
   "description": "MCP server for Vairix Admin - automate time tracking with Claude",
   "type": "module",

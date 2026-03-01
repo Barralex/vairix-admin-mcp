@@ -26,14 +26,14 @@ You  ->  Claude Code  ->  MCP Server (local)  ->  admin.vairix.com
 Create a GitHub Personal Access Token with `read:packages` scope, then add to your `~/.npmrc`:
 
 ```
-@vairix:registry=https://npm.pkg.github.com
+@barralex:registry=https://npm.pkg.github.com
 //npm.pkg.github.com/:_authToken=YOUR_GITHUB_PAT
 ```
 
 ### 2. Add the MCP server
 
 ```bash
-claude mcp add vairix-admin -- npx @vairix/admin-mcp
+claude mcp add vairix-admin -- npx @barralex/admin-mcp
 ```
 
 <details>
