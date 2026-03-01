@@ -117,36 +117,68 @@ async function apiPost(
   body: Record<string, string>
 ): Promise<Response> {
   const s = await session();
-  const form = await fetchFormData();
 
-  const params = new URLSearchParams({
-    authenticity_token: form.csrfFormToken,
-    ...body,
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const form = await fetchFormData();
 
-  return fetch(`${BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Cookie: s.cookies,
-    },
-    body: params.toString(),
-    redirect: "manual",
-  });
+    const params = new URLSearchParams({
+      authenticity_token: form.csrfFormToken,
+      ...body,
+    });
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Cookie: s.cookies,
+      },
+      body: params.toString(),
+      redirect: "manual",
+    });
+
+    if (res.status === 302 || res.status === 303 || res.status === 200) {
+      return res;
+    }
+
+    if (attempt === 0) {
+      formDataCache = null;
+      continue;
+    }
+
+    return res;
+  }
+
+  throw new Error("POST failed after retry");
 }
 
 async function apiDelete(path: string): Promise<Response> {
   const s = await session();
-  const form = await fetchFormData();
 
-  return fetch(`${BASE_URL}${path}`, {
-    method: "DELETE",
-    headers: {
-      Cookie: s.cookies,
-      "X-CSRF-Token": form.csrfMetaToken,
-    },
-    redirect: "manual",
-  });
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const form = await fetchFormData();
+
+    const res = await fetch(`${BASE_URL}${path}`, {
+      method: "DELETE",
+      headers: {
+        Cookie: s.cookies,
+        "X-CSRF-Token": form.csrfMetaToken,
+      },
+      redirect: "manual",
+    });
+
+    if (res.status === 200 || res.status === 302 || res.status === 303) {
+      return res;
+    }
+
+    if (attempt === 0) {
+      formDataCache = null;
+      continue;
+    }
+
+    return res;
+  }
+
+  throw new Error("DELETE failed after retry");
 }
 
 // ---- Public API ----
