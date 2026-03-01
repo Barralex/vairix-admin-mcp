@@ -10,6 +10,7 @@ import {
   getProjects,
   createHour,
   deleteHour,
+  batchDeleteHours,
   categoryName,
   type HourEntry,
   type GetHoursFilter,
@@ -369,13 +370,22 @@ server.tool(
 
 server.tool(
   "delete_hours",
-  "Delete an hour entry by its ID. Get the ID from `get_hours` results. This action is irreversible — confirm with the user before deleting.",
+  "Delete one or more hour entries by ID. Get IDs from `get_hours` results. This action is irreversible — confirm with the user before deleting. Use `id` for a single entry or `ids` for bulk deletion (e.g. deleting all extra hours, clearing a date range). When deleting 2+ entries, always prefer `ids` — it uses a single batch request instead of multiple calls.",
   {
-    id: z.string().describe("The numeric entry ID returned by `get_hours` (e.g. \"181608\")"),
+    id: z.string().describe("Single entry ID. Use this when deleting one entry.").optional(),
+    ids: z.array(z.string()).describe("Multiple entry IDs for batch deletion in a single request. Preferred when deleting 2+ entries.").optional(),
   },
-  async ({ id }) => {
+  async ({ id, ids }) => {
     try {
-      const res = await deleteHour(id);
+      const toDelete = ids ?? (id ? [id] : []);
+      if (toDelete.length === 0) {
+        return { content: [{ type: "text", text: "No IDs provided. Pass `id` for a single entry or `ids` for multiple." }] };
+      }
+      if (toDelete.length === 1) {
+        const res = await deleteHour(toDelete[0]);
+        return { content: [{ type: "text", text: res.message }] };
+      }
+      const res = await batchDeleteHours(toDelete);
       return { content: [{ type: "text", text: res.message }] };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }] };

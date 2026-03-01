@@ -342,3 +342,33 @@ export async function deleteHour(
   await apiDelete(`/admin/daily_hours/${id}`);
   return { success: true, message: `Hour entry ${id} deleted` };
 }
+
+export async function batchDeleteHours(
+  ids: string[]
+): Promise<{ success: boolean; message: string }> {
+  const s = await session();
+  const form = await fetchFormData();
+
+  const params = new URLSearchParams();
+  params.set("authenticity_token", form.csrfFormToken);
+  params.set("batch_action", "destroy");
+  for (const id of ids) {
+    params.append("collection_selection[]", id);
+  }
+
+  const res = await fetch(`${BASE_URL}/admin/daily_hours/batch_action`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Cookie: s.cookies,
+    },
+    body: params.toString(),
+    redirect: "manual",
+  });
+
+  if (res.status === 302 || res.status === 303) {
+    return { success: true, message: `${ids.length} entries deleted` };
+  }
+
+  return { success: false, message: `Batch delete failed (status ${res.status})` };
+}
