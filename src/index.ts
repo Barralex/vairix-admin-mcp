@@ -312,7 +312,9 @@ server.tool(
   {
     dates: z.union([
       z.array(z.string()),
-      z.string().transform((s) => JSON.parse(s) as string[]),
+      z.string().transform((s) => {
+        try { return JSON.parse(s) as string[]; } catch { return [s]; }
+      }),
     ]).pipe(z.array(z.string()).min(1)).describe('One or more dates in YYYY-MM-DD format. Example: ["2026-02-24", "2026-02-25"]'),
     project_id: z
       .string()
@@ -384,7 +386,10 @@ server.tool(
   {
     ids: z.union([
       z.array(z.string()),
-      z.string().transform((s) => JSON.parse(s) as string[]),
+      z.string().transform((s) => {
+        try { return JSON.parse(s) as string[]; } catch { return [s]; }
+      }),
+      z.number().transform((n) => [String(n)]),
     ]).pipe(z.array(z.string()).min(1)).describe("Entry IDs to delete. Example: ['182353'] or ['182353','182351','182350']"),
   },
   { destructiveHint: true, openWorldHint: true },
