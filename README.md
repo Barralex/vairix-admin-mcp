@@ -113,14 +113,54 @@ Your credentials are handled carefully:
 - **Session cookies** live in your OS keychain (macOS Keychain / Linux libsecret / Windows Credential Vault).
 - **No bundled browser**. Uses your existing Chrome, Edge, or Brave.
 
+## WSL Setup
+
+Running inside WSL requires extra steps since there's no default browser or keychain.
+
+**1. Install a browser inside WSL:**
+
+```bash
+# Option A: Chromium
+sudo apt install -y chromium-browser
+
+# Option B: Google Chrome
+wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+sudo apt -f install -y
+```
+
+**2. Install keychain dependencies:**
+
+```bash
+sudo apt install -y libsecret-1-dev gnome-keyring
+```
+
+Start the keyring daemon (add to your `.bashrc`):
+
+```bash
+eval $(gnome-keyring-daemon --start --components=secrets 2>/dev/null)
+export GNOME_KEYRING_CONTROL
+```
+
+**3. Verify setup:**
+
+```bash
+npx --yes github:Barralex/vairix-admin-mcp --health-check
+```
+
+> **Note:** Browser auth requires a display server. WSL2 with WSLg provides this automatically. If using WSL1 or WSLg isn't working, you'll need an X11 server (e.g., VcXsrv) with `export DISPLAY=:0`.
+
 ## Troubleshooting
 
 | Problem | Solution |
 |:--------|:---------|
 | "No Chromium-based browser found" | Install Chrome, Edge, or Brave. |
+| "No Chromium-based browser found inside WSL" | Install a browser _inside_ WSL, not on Windows. See [WSL Setup](#wsl-setup). |
 | "Not authenticated" | Say _"authenticate with Vairix"_. |
 | "Session expired" | Same -- just authenticate again. |
 | Hours creation fails | Check the error. Admin validates dates (no future dates, etc). |
+| Keychain errors on WSL/Linux | Install libsecret and gnome-keyring. See [WSL Setup](#wsl-setup). |
+| Server won't start | Run `--health-check` to diagnose: `npx --yes github:Barralex/vairix-admin-mcp --health-check` |
 
 ## Development
 

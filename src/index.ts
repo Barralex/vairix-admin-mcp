@@ -14,6 +14,14 @@ import {
   type HourEntry,
   type GetHoursFilter,
 } from "./api.js";
+import {
+  detectEnvironment,
+  runAllChecks,
+  runStartupChecks,
+  formatCheckResults,
+  enhanceError,
+  log,
+} from "./diagnostics.js";
 
 const server = new McpServer({
   name: "vairix-admin",
@@ -53,10 +61,11 @@ server.tool(
         }],
       };
     } catch (e) {
+      log("error", `Auth failed: ${e instanceof Error ? e.message : e}`);
       return {
         content: [{
           type: "text",
-          text: `Auth failed: ${e instanceof Error ? e.message : e}`,
+          text: `Auth failed: ${enhanceError(e)}`,
         }],
         isError: true,
       };
@@ -409,12 +418,33 @@ server.tool(
 );
 
 async function main() {
+  const env = detectEnvironment();
+  log("info", `Startup: Node ${env.nodeVersion}, ${env.platform}${env.isWSL ? " (WSL)" : ""}`);
+
+  if (process.argv.includes("--health-check")) {
+    const checks = await runAllChecks();
+    console.log(formatCheckResults(checks));
+    process.exit(checks.some((c) => c.status === "fail") ? 1 : 0);
+  }
+
+  const startup = runStartupChecks();
+  if (startup.fatal) {
+    log("error", `Fatal: ${startup.fatal}`);
+    console.error(startup.fatal);
+    process.exit(1);
+  }
+  for (const w of startup.warnings) {
+    log("warn", w);
+    console.error(`[WARN] ${w}`);
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("vairix-admin MCP running");
 }
 
 main().catch((e) => {
+  log("error", `Fatal: ${e instanceof Error ? e.message : e}`);
   console.error(e);
   process.exit(1);
 });

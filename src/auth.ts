@@ -2,6 +2,7 @@ import { chromium } from "playwright-core";
 import { existsSync } from "fs";
 import { execSync } from "child_process";
 import keytar from "keytar";
+import { getBrowserPaths, detectEnvironment, log } from "./diagnostics.js";
 
 const SERVICE = "vairix-admin-mcp";
 const BASE_URL = "https://admin.vairix.com";
@@ -23,7 +24,8 @@ export async function loadSession(): Promise<SessionData | null> {
     const data = await keytar.getPassword(SERVICE, "session");
     if (!data) return null;
     return JSON.parse(data) as SessionData;
-  } catch {
+  } catch (e) {
+    log("error", `Failed to load session: ${e instanceof Error ? e.message : e}`);
     return null;
   }
 }
@@ -84,41 +86,17 @@ function getScreenSize(): { width: number; height: number } {
 }
 
 function findChromiumBrowser(): string {
-  const paths = [
-    // macOS - Chrome
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
-    // macOS - Edge
-    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-    // macOS - Brave
-    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
-    // macOS - Chromium
-    "/Applications/Chromium.app/Contents/MacOS/Chromium",
-    // Linux - Chrome
-    "/usr/bin/google-chrome",
-    "/usr/bin/google-chrome-stable",
-    // Linux - Edge
-    "/usr/bin/microsoft-edge",
-    "/usr/bin/microsoft-edge-stable",
-    // Linux - Brave
-    "/usr/bin/brave-browser",
-    "/usr/bin/brave-browser-stable",
-    // Linux - Chromium
-    "/usr/bin/chromium-browser",
-    "/usr/bin/chromium",
-    // Windows - Chrome
-    "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-    // Windows - Edge
-    "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-    "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-    // Windows - Brave
-    "C:\\Program Files\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-    "C:\\Program Files (x86)\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
-  ];
+  const paths = getBrowserPaths();
 
   for (const p of paths) {
     if (existsSync(p)) return p;
+  }
+
+  const env = detectEnvironment();
+  if (env.isWSL) {
+    throw new Error(
+      "No Chromium-based browser found inside WSL. You need a browser installed in WSL itself, not just on Windows. Run with --health-check for setup instructions."
+    );
   }
 
   throw new Error(
@@ -127,7 +105,9 @@ function findChromiumBrowser(): string {
 }
 
 export async function authenticate(): Promise<SessionData> {
+  log("info", "Authentication started");
   const chromePath = findChromiumBrowser();
+  log("info", `Browser found: ${chromePath}`);
 
   const windowWidth = 900;
   const windowHeight = 700;
@@ -170,6 +150,7 @@ export async function authenticate(): Promise<SessionData> {
     });
   } catch {
     await browser.close();
+    log("warn", "Authentication timed out");
     throw new Error("Login timed out. Chrome was closed or login was not completed in time. Try again with `auth`.");
   }
 
@@ -206,5 +187,6 @@ export async function authenticate(): Promise<SessionData> {
   };
 
   await saveSession(session);
+  log("info", `Authentication successful: ${email}`);
   return session;
 }
