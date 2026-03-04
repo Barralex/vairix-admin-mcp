@@ -28,10 +28,19 @@ No more clicking through forms -- just describe what you need in plain language.
 One command. That's it.
 
 ```bash
-claude mcp add vairix-admin -s user -- npx --yes github:Barralex/vairix-admin-mcp
+claude mcp add vairix-admin -s user -- npx @vairix/admin-mcp
 ```
 
 > `-s user` makes it available across **all** your projects, not just the current one.
+
+<details>
+<summary>Install from GitHub instead</summary>
+
+```bash
+claude mcp add vairix-admin -s user -- npx --yes github:Barralex/vairix-admin-mcp
+```
+
+</details>
 
 <details>
 <summary>Clone manually instead</summary>
@@ -161,6 +170,18 @@ npx --yes github:Barralex/vairix-admin-mcp --health-check
 | Hours creation fails | Check the error. Admin validates dates (no future dates, etc). |
 | Keychain errors on WSL/Linux | Install libsecret and gnome-keyring. See [WSL Setup](#wsl-setup). |
 | Server won't start | Run `--health-check` to diagnose: `npx --yes github:Barralex/vairix-admin-mcp --health-check` |
+
+## Releasing
+
+Every push to `main` automatically publishes to npm. The version is bumped based on the commit message prefix:
+
+| Commit prefix | Bump | Example |
+|:--------------|:-----|:--------|
+| `feat!:` or `BREAKING CHANGE` | **major** | `1.0.0` → `2.0.0` |
+| `feat:` | **minor** | `1.0.0` → `1.1.0` |
+| `fix:`, `refactor:`, `chore:`, etc. | **patch** | `1.0.0` → `1.0.1` |
+
+The CI pipeline bumps `package.json`, publishes the package, and commits the new version back to `main`. No manual version management needed.
 
 ## Development
 
