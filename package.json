@@ -3,10 +3,7 @@
   "version": "1.0.2",
   "description": "MCP server for Vairix Admin - automate time tracking with Claude",
   "type": "module",
-  "bin": {
-    "admin-mcp": "./build/index.js",
-    "vairix-admin-mcp": "./build/index.js"
-  },
+  "bin": "./build/index.js",
   "scripts": {
     "build": "tsc",
     "prepare": "npm run build",
