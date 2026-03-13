@@ -1,0 +1,32 @@
+{
+  "manifest_version": "0.3",
+  "name": "vairix-admin",
+  "display_name": "Vairix Admin",
+  "version": "1.0.3",
+  "description": "MCP server for Vairix Admin - automate time tracking with Claude",
+  "author": {
+    "name": "Vairix",
+    "email": "luis@vairix.com"
+  },
+  "server": {
+    "type": "node",
+    "entry_point": "build/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/build/index.js"]
+    }
+  },
+  "tools_generated": true,
+  "compatibility": {
+    "platforms": ["darwin", "linux", "win32"],
+    "runtimes": {
+      "node": ">=18"
+    }
+  },
+  "icon": "icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Barralex/vairix-admin-mcp"
+  }
+}
