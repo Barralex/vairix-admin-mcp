@@ -1,4 +1,4 @@
-name: Publish to npm
+name: Publish to npm & GitHub Release
 
 on:
   push:
@@ -56,3 +56,22 @@ jobs:
           git add package.json package-lock.json
           git commit -m "chore: bump version to $VERSION"
           git push
+
+      - name: Update manifest version
+        run: |
+          jq --arg v "$VERSION" '.version = $v' manifest.json > tmp.json
+          mv tmp.json manifest.json
+
+      - name: Build .mcpb
+        run: |
+          npm install --production --ignore-scripts
+          npx @anthropic-ai/mcpb pack .
+          echo "MCPB_FILE=$(ls *.mcpb)" >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ env.VERSION }}
+          name: Vairix Admin MCP v${{ env.VERSION }}
+          generate_release_notes: true
+          files: ${{ env.MCPB_FILE }}
