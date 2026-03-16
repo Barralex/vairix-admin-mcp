@@ -404,12 +404,19 @@ server.tool(
   { destructiveHint: true, openWorldHint: true },
   async ({ ids }) => {
     try {
-      const results = await Promise.all(ids.map((id) => deleteHour(id).then(() => id).catch((e) => `${id}: ${e instanceof Error ? e.message : e}`)));
-      const deleted = results.filter((r) => !r.includes(":"));
-      const failed = results.filter((r) => r.includes(":"));
+      const results = await Promise.all(
+        ids.map((id) =>
+          deleteHour(id).catch((e) => ({
+            success: false,
+            message: `${id}: ${e instanceof Error ? e.message : e}`,
+          }))
+        )
+      );
+      const deleted = results.filter((r) => r.success);
+      const failed = results.filter((r) => !r.success);
       const parts: string[] = [];
       if (deleted.length) parts.push(`${deleted.length} entries deleted`);
-      if (failed.length) parts.push(`Failed: ${failed.join(", ")}`);
+      if (failed.length) parts.push(`Failed: ${failed.map((r) => r.message).join(", ")}`);
       return { content: [{ type: "text", text: parts.join(". ") }], ...(failed.length ? { isError: true } : {}) };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
