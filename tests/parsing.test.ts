@@ -129,6 +129,50 @@ describe("CSRF token parsing", () => {
   });
 });
 
+describe("deleteHour response handling", () => {
+  it("reports failure for non-success status codes", () => {
+    const results = [
+      { success: true, message: "Hour entry 100 deleted" },
+      { success: false, message: "Failed to delete entry 101: status 404" },
+      { success: false, message: "Failed to delete entry 102: status 500" },
+    ];
+
+    const deleted = results.filter((r) => r.success);
+    const failed = results.filter((r) => !r.success);
+
+    assert.strictEqual(deleted.length, 1);
+    assert.strictEqual(failed.length, 2);
+    assert.ok(failed[0].message.includes("404"));
+    assert.ok(failed[1].message.includes("500"));
+  });
+
+  it("reports all success when all deletions succeed", () => {
+    const results = [
+      { success: true, message: "Hour entry 100 deleted" },
+      { success: true, message: "Hour entry 101 deleted" },
+    ];
+
+    const deleted = results.filter((r) => r.success);
+    const failed = results.filter((r) => !r.success);
+
+    assert.strictEqual(deleted.length, 2);
+    assert.strictEqual(failed.length, 0);
+  });
+
+  it("handles all failures", () => {
+    const results = [
+      { success: false, message: "Failed to delete entry 100: status 422" },
+    ];
+
+    const deleted = results.filter((r) => r.success);
+    const failed = results.filter((r) => !r.success);
+
+    assert.strictEqual(deleted.length, 0);
+    assert.strictEqual(failed.length, 1);
+    assert.ok(failed[0].message.includes("422"));
+  });
+});
+
 describe("staff_id parsing", () => {
   it("extracts staff_id with value before selected", () => {
     const html = `
