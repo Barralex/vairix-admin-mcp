@@ -1,8 +1,17 @@
 name: Publish to npm & GitHub Release
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 jobs:
   publish:
@@ -30,22 +39,10 @@ jobs:
 
       - run: npm run build
 
-      - name: Determine version bump from commit
-        id: bump
-        run: |
-          MSG=$(git log -1 --pretty=%B)
-          if echo "$MSG" | grep -qiE '^feat(\(.+\))?!:|BREAKING CHANGE'; then
-            echo "type=major" >> "$GITHUB_OUTPUT"
-          elif echo "$MSG" | grep -qiE '^feat(\(.+\))?:'; then
-            echo "type=minor" >> "$GITHUB_OUTPUT"
-          else
-            echo "type=patch" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Bump version
         id: version
         run: |
-          npm version ${{ steps.bump.outputs.type }} --no-git-tag-version
+          npm version ${{ inputs.bump }} --no-git-tag-version
           VERSION=$(node -p 'require("./package.json").version')
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
