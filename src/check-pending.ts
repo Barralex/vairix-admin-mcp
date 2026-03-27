@@ -25,18 +25,20 @@ function writeCache(pendingDays: string[]): void {
   writeFileSync(CACHE_FILE, JSON.stringify({ lastCheck: Date.now(), pendingDays }));
 }
 
+function output(pendingDays: string[]): void {
+  if (pendingDays.length === 0) return;
+  const msg = `Tienes ${pendingDays.length} dia(s) sin cargar horas este mes en admin.vairix.com: ${pendingDays.join(", ")}.`;
+  console.error(msg);
+  console.log(JSON.stringify({ systemMessage: msg }));
+}
+
 async function main() {
   const cached = readCache();
   if (cached !== null) {
-    if (cached.pendingDays.length > 0) {
-      console.log(
-        `Recordatorio: Tienes ${cached.pendingDays.length} dia(s) sin cargar horas este mes en admin.vairix.com: ${cached.pendingDays.join(", ")}.`
-      );
-    }
+    output(cached.pendingDays);
     return;
   }
 
-  // No cache — fetch from API
   const session = await loadSession();
   if (!session) return;
 
@@ -46,12 +48,7 @@ async function main() {
   try {
     const pending = await getPendingDays();
     writeCache(pending);
-
-    if (pending.length > 0) {
-      console.log(
-        `Recordatorio: Tienes ${pending.length} dia(s) sin cargar horas este mes en admin.vairix.com: ${pending.join(", ")}.`
-      );
-    }
+    output(pending);
   } catch {
     writeCache([]);
   }

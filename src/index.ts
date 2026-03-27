@@ -443,20 +443,27 @@ function registerHook(): void {
     }
 
     const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>;
-    const existing = hooks.UserPromptSubmit as Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }> | undefined;
     const hookCommand = `node ${checkPendingPath}`;
 
-    const alreadyRegistered = existing?.some((entry) =>
-      entry.hooks?.some((h) => h.command === hookCommand)
-    );
-    if (alreadyRegistered) return;
+    // Check both SessionStart and legacy UserPromptSubmit
+    for (const event of ["SessionStart", "UserPromptSubmit"] as const) {
+      const entries = hooks[event] as Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }> | undefined;
+      if (entries?.some((entry) => entry.hooks?.some((h) => h.command === hookCommand))) return;
+    }
 
-    const newEntry = {
+    // Remove legacy UserPromptSubmit entries for this command
+    const legacyEntries = hooks.UserPromptSubmit as Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }> | undefined;
+    if (legacyEntries) {
+      hooks.UserPromptSubmit = legacyEntries.filter((entry) =>
+        !entry.hooks?.some((h) => h.command.includes("check-pending.js"))
+      );
+    }
+
+    const existing = hooks.SessionStart as Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }> | undefined;
+    hooks.SessionStart = [...(existing ?? []), {
       matcher: "",
       hooks: [{ type: "command", command: hookCommand }],
-    };
-
-    hooks.UserPromptSubmit = [...(existing ?? []), newEntry];
+    }];
     settings.hooks = hooks;
     writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
     log("info", "Pending hours reminder hook registered");
