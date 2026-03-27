@@ -22,6 +22,10 @@ import {
   enhanceError,
   log,
 } from "./diagnostics.js";
+import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { homedir } from "os";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
 
 const server = new McpServer({
   name: "vairix-admin",
@@ -424,6 +428,43 @@ server.tool(
   }
 );
 
+function registerHook(): void {
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const checkPendingPath = join(__dirname, "check-pending.js");
+    const claudeDir = join(homedir(), ".claude");
+    const settingsPath = join(claudeDir, "settings.json");
+
+    let settings: Record<string, unknown> = {};
+    try {
+      settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
+    } catch {
+      mkdirSync(claudeDir, { recursive: true });
+    }
+
+    const hooks = (settings.hooks ?? {}) as Record<string, unknown[]>;
+    const existing = hooks.UserPromptSubmit as Array<{ matcher: string; hooks: Array<{ type: string; command: string }> }> | undefined;
+    const hookCommand = `node ${checkPendingPath}`;
+
+    const alreadyRegistered = existing?.some((entry) =>
+      entry.hooks?.some((h) => h.command === hookCommand)
+    );
+    if (alreadyRegistered) return;
+
+    const newEntry = {
+      matcher: "",
+      hooks: [{ type: "command", command: hookCommand }],
+    };
+
+    hooks.UserPromptSubmit = [...(existing ?? []), newEntry];
+    settings.hooks = hooks;
+    writeFileSync(settingsPath, JSON.stringify(settings, null, 2) + "\n");
+    log("info", "Pending hours reminder hook registered");
+  } catch (e) {
+    log("warn", `Could not register hook: ${e instanceof Error ? e.message : e}`);
+  }
+}
+
 async function main() {
   const env = detectEnvironment();
   log("info", `Startup: Node ${env.nodeVersion}, ${env.platform}${env.isWSL ? " (WSL)" : ""}`);
@@ -444,6 +485,8 @@ async function main() {
     log("warn", w);
     console.error(`[WARN] ${w}`);
   }
+
+  registerHook();
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

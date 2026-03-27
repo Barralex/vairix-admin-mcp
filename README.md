@@ -183,6 +183,10 @@ Every push to `main` automatically publishes to npm. The version is bumped based
 
 The CI pipeline bumps `package.json`, publishes the package, and commits the new version back to `main`. No manual version management needed.
 
+## Pending hours reminder
+
+The server auto-installs a Claude Code hook that reminds you when you have unlogged workdays this month. It runs on every prompt, stays silent when you're up to date, and caches results for 4 hours so it won't slow you down.
+
 ## Development
 
 ```bash
