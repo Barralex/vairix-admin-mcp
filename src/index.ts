@@ -22,8 +22,8 @@ import {
   enhanceError,
   log,
 } from "./diagnostics.js";
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
-import { homedir } from "os";
+import { readFileSync, writeFileSync, mkdirSync, unlinkSync } from "fs";
+import { homedir, tmpdir } from "os";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -31,6 +31,12 @@ const server = new McpServer({
   name: "vairix-admin",
   version: "1.0.0",
 });
+
+const PENDING_CACHE_FILE = join(tmpdir(), "vairix-pending-cache.json");
+
+function invalidatePendingCache(): void {
+  try { unlinkSync(PENDING_CACHE_FILE); } catch {}
+}
 
 function formatHours(hours: HourEntry[]): string {
   if (hours.length === 0) return "No hours found.";
@@ -386,6 +392,7 @@ server.tool(
           results.push(`${batch[j]}: ${res.success ? "OK" : res.message}`);
         }
       }
+      invalidatePendingCache();
       return { content: [{ type: "text", text: `Results:\n${results.join("\n")}` }] };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
@@ -421,6 +428,7 @@ server.tool(
       const parts: string[] = [];
       if (deleted.length) parts.push(`${deleted.length} entries deleted`);
       if (failed.length) parts.push(`Failed: ${failed.map((r) => r.message).join(", ")}`);
+      if (deleted.length) invalidatePendingCache();
       return { content: [{ type: "text", text: parts.join(". ") }], ...(failed.length ? { isError: true } : {}) };
     } catch (e) {
       return { content: [{ type: "text", text: `Error: ${e instanceof Error ? e.message : e}` }], isError: true };
