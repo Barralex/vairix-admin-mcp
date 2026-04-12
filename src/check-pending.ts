@@ -28,7 +28,6 @@ function writeCache(pendingDays: string[]): void {
 function output(pendingDays: string[]): void {
   if (pendingDays.length === 0) return;
   const msg = `Tienes ${pendingDays.length} dia(s) sin cargar horas este mes en admin.vairix.com: ${pendingDays.join(", ")}.`;
-  console.error(msg);
   console.log(JSON.stringify({ systemMessage: msg }));
 }
 
